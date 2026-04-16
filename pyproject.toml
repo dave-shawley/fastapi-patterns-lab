@@ -1,0 +1,68 @@
+[project]
+name = "fastapi-webhook"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = [
+  "fastapi~=0.135.3",
+  "uvicorn[standard]~=0.44.0",
+]
+
+[dependency-groups]
+dev = [
+  "pre-commit>=4.5.1",
+  "ruff~=0.15.10",
+]
+
+[build-system]
+requires = ["hatchling>=1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 79
+target-version = "py314"
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = false
+
+[tool.ruff.lint]
+select = [
+  "A",
+  "ANN",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "DTZ",
+  "E",
+  "ERA",
+  "F",
+  "FBT",
+  "FLY",
+  "FURB",
+  "G",
+  "I",
+  "ISC",
+  "LOG",
+  "N",
+  "PIE",
+  "PL",
+  "PTH",
+  "RET",
+  "RSE",
+  "S",
+  "SIM",
+  "SLF",
+  "T10",
+  "T20",
+  "TC",
+  "TRY",
+  "UP",
+  "W"
+]
+ignore = [
+  "TRY003",  # Allow messages in exception initializers
+]
+pydocstyle = { convention = "google" }
