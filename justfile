@@ -7,7 +7,7 @@ export UV_FROZEN := "1"
 [doc("Reformat source files")]
 format *FILES:
     uv run --no-sync ruff format {{ FILES }}
-    -uv run --no-sync pre-commit run tombi-format
+    -uv run --no-sync pre-commit run --all-files tombi-format
     just --fmt --unstable
 
 [doc("Run style checkers and static analyzers")]
