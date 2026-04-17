@@ -17,4 +17,5 @@ lint:
 
 [doc("Run the service using uvicorn")]
 serve *ARGS:
-    -uv run uvicorn --factory fastapi_webhook.entrypoints:create_app --log-config log-config.yaml --reload {{ ARGS }}
+    touch .env
+    -uv run --env-file .env uvicorn --factory fastapi_webhook.entrypoints:create_app --log-config log-config.yaml --reload {{ ARGS }}

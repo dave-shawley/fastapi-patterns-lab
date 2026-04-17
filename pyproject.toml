@@ -7,6 +7,7 @@ dependencies = [
   "httpx>=0.28.1",
   "keyring>=25.7.0",
   "pydantic~=2.13",
+  "pydantic-settings~=2.13",
   "typer>=0.21.1",
   "uvicorn[standard]~=0.44.0",
   "yarl>=1.23.0",
