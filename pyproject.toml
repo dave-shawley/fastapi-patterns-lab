@@ -4,18 +4,32 @@ version = "0.0.0"
 requires-python = ">=3.14"
 dependencies = [
   "fastapi~=0.135.3",
+  "httpx>=0.28.1",
+  "keyring>=25.7.0",
+  "pydantic~=2.13",
+  "typer>=0.21.1",
   "uvicorn[standard]~=0.44.0",
+  "yarl>=1.23.0",
 ]
+
+[project.scripts]
+fastapi-webhook = "fastapi_webhook.entrypoints:cli"
 
 [dependency-groups]
 dev = [
+  "mypy>=1.20.1",
   "pre-commit>=4.5.1",
-  "ruff~=0.15.10",
+  "ruff~=0.14.14",
 ]
 
 [build-system]
 requires = ["hatchling>=1.28.0"]
 build-backend = "hatchling.build"
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+enable_error_code = "exhaustive-match"
 
 [tool.ruff]
 line-length = 79
@@ -63,6 +77,8 @@ select = [
   "W"
 ]
 ignore = [
-  "TRY003",  # Allow messages in exception initializers
+  "RSE102", # I like to raise exception instances not classes
+  "TC003", # This doesn't work with pydantic
+  "TRY003", # Allow messages in exception initializers
 ]
 pydocstyle = { convention = "google" }
