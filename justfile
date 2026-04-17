@@ -1,10 +1,20 @@
+export UV_FROZEN := "1"
+
 @help:
     just --list
 
-format:
-    uv run ruff format
-    -uv run pre-commit run tombi-format
+[arg('FILES', pattern='.*\.py')]
+[doc("Reformat source files")]
+format *FILES:
+    uv run --no-sync ruff format {{ FILES }}
+    -uv run --no-sync pre-commit run tombi-format
     just --fmt --unstable
 
-serve:
-    -uv run uvicorn --factory fastapi_webhook.entrypoints:create_app --log-config log-config.yaml --reload
+[doc("Run style checkers and static analyzers")]
+lint:
+    uv run ruff check
+    uv run mypy -p fastapi_webhook
+
+[doc("Run the service using uvicorn")]
+serve *ARGS:
+    -uv run uvicorn --factory fastapi_webhook.entrypoints:create_app --log-config log-config.yaml --reload {{ ARGS }}
