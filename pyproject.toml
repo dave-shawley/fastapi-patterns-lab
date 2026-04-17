@@ -6,6 +6,10 @@ dependencies = [
   "fastapi~=0.135.3",
   "httpx>=0.28.1",
   "keyring>=25.7.0",
+  "opentelemetry-distro>=0.62b0",
+  "opentelemetry-instrumentation-asyncio>=0.62b0",
+  "opentelemetry-instrumentation-fastapi>=0.62b0",
+  "opentelemetry-sdk~=1.41.0",
   "pydantic~=2.13",
   "pydantic-settings~=2.13",
   "typer>=0.21.1",
@@ -78,8 +82,12 @@ select = [
   "W"
 ]
 ignore = [
-  "RSE102", # I like to raise exception instances not classes
-  "TC003", # This doesn't work with pydantic
-  "TRY003", # Allow messages in exception initializers
+  "RSE102",  # I like to raise exception instances not classes
+  "TC003",  # This doesn't work with pydantic
+  "TRY003",  # Allow messages in exception initializers
 ]
 pydocstyle = { convention = "google" }
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
