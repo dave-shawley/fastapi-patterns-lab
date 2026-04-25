@@ -39,11 +39,11 @@ flow below uses GitHub as the example:
 2. `receive_notification()` verifies the signature, reads the request
    body, and validates it into a `PingPayload` or `PushPayload`.
 3. `receive_notification()` calls `run_webhook(...)`, which is injected
-   as `processor.WebhookTaskRunner`.
-4. `WebhookTaskRunner` builds a synthetic ASGI `http` scope and a
+   as `dispatching.DispatchTaskRunner`.
+4. `DispatchTaskRunner` builds a synthetic ASGI `http` scope and a
    synthetic `receive()` callable that returns the already-decoded
    payload as JSON.
-5. The processor state schedules `app(scope, receive, send)` in a new
+5. The dispatch state schedules `app(scope, receive, send)` in a new
    `asyncio` task.
 6. FastAPI routes that synthetic request to
    `POST /github/process/notification`.
@@ -62,15 +62,15 @@ parsing all happen again.
 constructs the app and wires in two pieces that make dispatching
 possible:
 
-- `fastapi.FastAPI(lifespan=lifespan.Lifespan(processor.State))`
+- `fastapi.FastAPI(lifespan=lifespan.Lifespan(dispatching.DispatchState))`
 
-The lifespan registration is what makes the processor state available to
+The lifespan registration is what makes the dispatch state available to
 request dependencies. Without it, the internal dispatcher has nowhere to
 register tasks.
 
 ### `lifespan.py`
 
-[lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/lifespan.py)
+[lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/lifespan.py)
 provides the `Lifespan` object that stores resources created at app
 startup in `request.state.lifespan_data`.
 
@@ -78,26 +78,27 @@ The important part for dispatching is `_get_lifespan()`. Dependencies
 that need lifespan-managed state resolve it from `request.state`. That
 means any synthetic request must preserve the state FastAPI expects.
 
-### `processor.py`
+### `dispatching.py`
 
-[processor.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/processor.py)
+[dispatching.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/dispatching.py)
 contains the internal dispatch machinery.
 
-`State` provides the app-lifetime task registry used by the dispatcher.
+`DispatchState` provides the app-lifetime task registry used by the
+dispatcher.
 
-`State.schedule_webhook()` starts a new `asyncio` task that calls
+`DispatchState.schedule_request()` starts a new `asyncio` task that calls
 `self.app(scope, receive, _blackhole_send)`. That line is the real
 dispatch. It does not invoke a handler directly; it re-enters the full
 application stack.
 
-`_get_webhook_task_runner()` is the active dependency behind
-`WebhookTaskRunner`. It closes over the current request, then returns a
+`_get_dispatch_task_runner()` is the active dependency behind
+`DispatchTaskRunner`. It closes over the current request, then returns a
 callable that:
 
 - accepts a task name, route path, and pydantic payload
 - builds a synthetic `http` ASGI scope
 - builds a synthetic `receive()` that returns one `http.request` message
-- asks the lifespan-managed `State` to schedule the task
+- asks the lifespan-managed `DispatchState` to schedule the task
 
 ### `github.py`
 
@@ -187,7 +188,8 @@ use `router.url_path_for()` to construct the path.
 ### 5. Task failures must be logged
 
 If the created task raises an exception and nobody inspects it, the
-system looks like a no-op. `State._task_finished()` should always log
+system looks like a no-op. `DispatchState._task_finished()` should
+always log
 exceptions from `task.exception()`.
 
 ## Why `process_notification()` may appear to never run
@@ -211,9 +213,10 @@ and still never reach `process_notification()`.
 When this breaks, verify these in order:
 
 1. Confirm `receive_notification()` logs before calling `run_webhook`.
-2. Confirm `State.schedule_webhook()` logs the task name and target
+2. Confirm `DispatchState.schedule_request()` logs the task name and
+   target
    path.
-3. Confirm `State._task_finished()` logs either completion or the
+3. Confirm `DispatchState._task_finished()` logs either completion or the
    exception traceback.
 4. Inspect the synthetic scope and make sure `path`,
    `method='POST'`, `headers`, and `state` are present.
@@ -230,7 +233,7 @@ To add another webhook source that uses this mechanism:
    payload.
 2. Create a processing route that accepts the normalized payload as a
    standard FastAPI body parameter.
-3. Inject `processor.WebhookTaskRunner` into the public route.
+3. Inject `dispatching.DispatchTaskRunner` into the public route.
 4. Call `run_webhook(task_name, internal_path, payload)`.
 5. Keep any lifespan-dependent dependencies compatible with a synthetic
    request by preserving `request.state`.
@@ -244,8 +247,8 @@ dependency injection.
 Before changing this machinery, read these files together:
 
 - [entrypoints.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/entrypoints.py)
-- [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/lifespan.py)
-- [processor.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/processor.py)
+- [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/lifespan.py)
+- [dispatching.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/dispatching.py)
 - [github.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/github.py)
 
 Do not assume that “new task” automatically means “fresh dependency

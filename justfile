@@ -13,9 +13,9 @@ format *FILES:
 [doc("Run style checkers and static analyzers")]
 lint:
     uv run ruff check --fix
-    uv run mypy -p fastapi_webhook
+    uv run mypy -p fastapi_patterns -p fastapi_webhook
 
-[doc("Run the service using uvicorn")]
+[doc("Run the example service using uvicorn")]
 serve *ARGS:
     touch .env
     -uv run --env-file .env uvicorn --factory fastapi_webhook.entrypoints:create_app --log-config log-config.yaml --reload {{ ARGS }}

@@ -7,7 +7,8 @@ import pydantic
 import pydantic_settings
 import yarl
 
-from fastapi_webhook import processor, utilities
+from fastapi_patterns import utilities
+from fastapi_patterns.dispatching import DispatchTaskRunner  # noqa: TC001
 
 router = fastapi.APIRouter(prefix='/github')
 
@@ -80,7 +81,7 @@ async def receive_notification(
     *,
     event: t.Annotated[str, fastapi.Header(alias='X-GitHub-Event')],
     hook_id: t.Annotated[int, fastapi.Header(alias='X-GitHub-Hook-ID')],
-    run_webhook: processor.WebhookTaskRunner,
+    run_webhook: DispatchTaskRunner,
     _signature: ValidPayloadSignature,
 ) -> None:
     logger = logging.getLogger(__name__).getChild('receive_notification')

@@ -173,7 +173,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fastapi-webhook"
+name = "fastapi-patterns-lab"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [

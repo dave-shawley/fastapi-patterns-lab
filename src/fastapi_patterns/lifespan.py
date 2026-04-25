@@ -53,17 +53,15 @@ from collections import abc
 
 import fastapi
 
-from fastapi_webhook import utilities
-
 
 class _ClassAsyncContextManager[T](t.Protocol):
     async def __aenter__(self) -> T: ...
 
     async def __aexit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
-        exc_traceback: types.TracebackType,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_traceback: types.TracebackType | None,
     ) -> object: ...
 
 
@@ -76,7 +74,6 @@ type ClassLifespanHook[T] = abc.Callable[
 type LifespanHook = (
     FunctionLifespanHook[object | None] | ClassLifespanHook[object | None]
 )
-type RequestState = abc.Mapping[str, object | None]
 type TypedLifespanHook[T] = FunctionLifespanHook[T] | ClassLifespanHook[T]
 
 
@@ -184,8 +181,7 @@ class Lifespan(dict[LifespanHook, object | None]):
         resources, and ensures proper cleanup on shutdown.
 
         Args:
-            _app (fastapi.FastAPI): The FastAPI application instance
-                (unused, required by FastAPI lifespan protocol).
+            app (fastapi.FastAPI): The FastAPI application instance.
 
         Returns:
             contextlib.AbstractAsyncContextManager[dict[str, Lifespan]]:
@@ -236,15 +232,14 @@ def _get_lifespan(request: fastapi.Request) -> Lifespan:
     See Also:
         LifespanMap: Type alias that uses this function via Depends()
     """
-    try:
-        return utilities.unwrap_as(
-            Lifespan, t.cast('object', request.state.lifespan_data)
-        )
-    except AttributeError, ValueError:
-        raise fastapi.HTTPException(
-            http.HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail='Lifespan not available',
-        ) from None
+    lifespan_data = t.cast(
+        'object', getattr(request.state, 'lifespan_data', None)
+    )
+    if isinstance(lifespan_data, Lifespan):
+        return lifespan_data
+    raise fastapi.HTTPException(
+        http.HTTPStatus.INTERNAL_SERVER_ERROR, detail='Lifespan not available'
+    )
 
 
 type LifespanMap = t.Annotated[Lifespan, fastapi.Depends(_get_lifespan)]

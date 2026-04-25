@@ -12,7 +12,8 @@ import rich.prompt
 import typer
 import yarl
 
-from fastapi_webhook import processor, utilities
+from fastapi_patterns import utilities
+from fastapi_patterns.dispatching import DispatchTaskRunner  # noqa: TC001
 
 router = fastapi.APIRouter(prefix='/pagerduty')
 cli = typer.Typer()
@@ -115,7 +116,7 @@ class PagerDutyClient(httpx.AsyncClient):
 
 @router.post('/notification', status_code=204)
 async def receive_notification(
-    payload: PDEventPayload, run_webhook: processor.WebhookTaskRunner
+    payload: PDEventPayload, run_webhook: DispatchTaskRunner
 ) -> None:
     logger = logging.getLogger(__name__).getChild('receive_notification')
     match payload.event:

@@ -1,6 +1,6 @@
 # Composable FastAPI Lifespans
 
-This project uses [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/lifespan.py)
+This project uses [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/lifespan.py)
 to compose app-lifetime resources into one FastAPI lifespan while still
 letting request-time dependencies retrieve those resources with useful
 types. Hooks can be written either as simple `@asynccontextmanager`
@@ -35,7 +35,7 @@ referring to the hook that created it.
 
 ## What it is used for here
 
-In this repository, the immediate user is the webhook processor state.
+In this repository, the immediate user is the internal dispatch state.
 [entrypoints.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/entrypoints.py)
 constructs the app with `fastapi.FastAPI(lifespan=lifespan.Lifespan(...))`.
 That registration makes lifespan-managed state available to normal
@@ -89,8 +89,8 @@ pass in:
 
 - if `postgres_lifespan()` yields `AsyncConnectionPool`,
   `get_state(postgres_lifespan)` is typed as `AsyncConnectionPool`
-- if `processor.State(app)` yields `State`,
-  `get_state(processor.State)` is typed as `State`
+- if `dispatching.DispatchState(app)` yields `DispatchState`,
+  `get_state(dispatching.DispatchState)` is typed as `DispatchState`
 
 That same inference works across both supported hook styles. The type
 parameter comes from the value yielded by the function-style hook or
@@ -157,16 +157,19 @@ class State:
 ```
 
 The class form is what
-[processor.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/processor.py)
+[dispatching.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/dispatching.py)
 uses for its application-scoped task registry.
 
 ### 2. Compose the hooks into the app lifespan
 
 ```python
-from fastapi_webhook import lifespan
+from fastapi_patterns import dispatching, lifespan
 
 app = fastapi.FastAPI(
-    lifespan=lifespan.Lifespan(processor.State, postgres_lifespan)
+    lifespan=lifespan.Lifespan(
+        dispatching.DispatchState,
+        postgres_lifespan,
+    )
 )
 ```
 
@@ -183,8 +186,10 @@ def _get_pool(lifespan_map: lifespan.LifespanMap) -> Pool:
 Or, for the class-based example:
 
 ```python
-def _get_state(lifespan_map: lifespan.LifespanMap) -> processor.State:
-    return lifespan_map.get_state(processor.State)
+def _get_state(
+    lifespan_map: lifespan.LifespanMap,
+) -> dispatching.DispatchState:
+    return lifespan_map.get_state(dispatching.DispatchState)
 ```
 
 ### 4. Expose a typed dependency alias when that improves readability
@@ -213,12 +218,13 @@ This is the most important rule.
 
 These two pair correctly:
 
-- `Lifespan(processor.State)` with `get_state(processor.State)`
+- `Lifespan(dispatching.DispatchState)` with
+  `get_state(dispatching.DispatchState)`
 - `Lifespan(postgres_lifespan)` with `get_state(postgres_lifespan)`
 
 These do not pair correctly:
 
-- `Lifespan(processor.State)` with
+- `Lifespan(dispatching.DispatchState)` with
   `get_state(postgres_lifespan)`
 - `Lifespan(postgres_lifespan)` with `get_state(other_wrapper)`
 
@@ -261,9 +267,9 @@ better fit.
 
 Before changing this machinery, read these files together:
 
-- [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/lifespan.py)
+- [lifespan.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/lifespan.py)
 - [entrypoints.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/entrypoints.py)
-- [processor.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_webhook/processor.py)
+- [dispatching.py](/Users/daveshawley/Source/python/fastapi-webhook/src/fastapi_patterns/dispatching.py)
 - [dispatching.md](/Users/daveshawley/Source/python/fastapi-webhook/docs/dispatching.md)
 
 Do not treat `Lifespan` as a string-keyed registry. Its main value is

@@ -1,5 +1,3 @@
-from importlib import metadata
+from fastapi_patterns import version
 
-version = metadata.version('fastapi-webhook')
-
-del metadata
+__all__ = ['version']
