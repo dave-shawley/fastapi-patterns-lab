@@ -1,7 +1,23 @@
 [project]
 name = "fastapi-patterns-lab"
 version = "0.0.0"
+description = "A working lab for exploring FastAPI and ASGI patterns in real code."
+readme = "README.md"
 requires-python = ">=3.14"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Framework :: AsyncIO",
+  "Framework :: FastAPI",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: POSIX",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development",
+  "Typing :: Typed",
+]
 dependencies = [
   "fastapi~=0.135.3",
   "httpx>=0.28.1",
