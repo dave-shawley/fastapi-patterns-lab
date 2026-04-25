@@ -1,7 +1,7 @@
 import fastapi
 import typer
 
-from fastapi_webhook import meta, pagerduty
+from fastapi_webhook import github, lifespan, meta, pagerduty, processor
 
 cli = typer.Typer(no_args_is_help=True)
 cli.add_typer(pagerduty.cli)
@@ -15,7 +15,9 @@ def _doc_stub() -> None:
 
 
 def create_app() -> fastapi.FastAPI:
-    app = fastapi.FastAPI()
+    lifespan_mgr = lifespan.Lifespan(processor.State)
+    app = fastapi.FastAPI(lifespan=lifespan_mgr)
+    app.include_router(github.router)
     app.include_router(meta.router)
     app.include_router(pagerduty.router)
     return app

@@ -12,7 +12,7 @@ import rich.prompt
 import typer
 import yarl
 
-from fastapi_webhook import utilities
+from fastapi_webhook import processor, utilities
 
 router = fastapi.APIRouter(prefix='/pagerduty')
 cli = typer.Typer()
@@ -96,8 +96,7 @@ class AlertsResponse(pydantic.BaseModel):
 
 class PDEventPayload(pydantic.BaseModel):
     event: t.Annotated[
-        PingEvent | IncidentEvent,
-        pydantic.Field(discriminator='event_type'),
+        PingEvent | IncidentEvent, pydantic.Field(discriminator='event_type')
     ]
 
 
@@ -114,22 +113,49 @@ class PagerDutyClient(httpx.AsyncClient):
         )
 
 
-@router.post('/notification')
-async def process_pagerduty_notification(
-    payload: PDEventPayload,
+@router.post('/notification', status_code=204)
+async def receive_notification(
+    payload: PDEventPayload, run_webhook: processor.WebhookTaskRunner
 ) -> None:
-    logger = logging.getLogger(__package__).getChild('pagerduty')
+    logger = logging.getLogger(__name__).getChild('receive_notification')
     match payload.event:
         case IncidentEvent():
-            pass
+            logger.info(
+                'queueing pagerduty notification %s on %s',
+                payload.event.event_type,
+                utilities.get_task_name(),
+            )
+            run_webhook(
+                f'pagerduty-{payload.event.data.id}',
+                router.url_path_for('process_notification'),
+                payload,
+            )
+        case PingEvent() | _:
+            logger.info('ignoring event type %s', payload.event.event_type)
+            return
+
+
+@router.post('/process/notification', include_in_schema=False)
+async def process_notification(payload: PDEventPayload) -> None:
+    logger = logging.getLogger(__name__).getChild('process_notification')
+    incident_id: str
+    match payload.event:
+        case IncidentEvent():
+            logger.info(
+                'processing pagerduty notification %s on %s',
+                payload.event.event_type,
+                utilities.get_task_name(),
+            )
+            incident_id = payload.event.data.id
         case PingEvent() | _:
             logger.info('ignoring event type %s', payload.event.event_type)
             return
 
     logger.info(
-        'processing pagerduty notification %s', payload.event.event_type
+        'retrieving alerts for incident %s on %s',
+        incident_id,
+        utilities.get_task_name(),
     )
-    incident_id = payload.event.data.id
     async with PagerDutyClient() as client:
         rsp = await client.get(f'/incidents/{incident_id}/alerts')
         if rsp.is_success:
