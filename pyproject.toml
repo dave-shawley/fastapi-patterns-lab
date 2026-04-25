@@ -43,6 +43,7 @@ target-version = "py314"
 [tool.ruff.format]
 quote-style = "single"
 docstring-code-format = false
+skip-magic-trailing-comma = true
 
 [tool.ruff.lint]
 select = [
@@ -87,6 +88,7 @@ ignore = [
   "TRY003",  # Allow messages in exception initializers
 ]
 pydocstyle = { convention = "google" }
+isort = { split-on-trailing-comma = false }
 
 [[tool.uv.index]]
 url = "https://pypi.org/simple"

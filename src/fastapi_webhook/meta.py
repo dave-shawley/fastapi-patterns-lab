@@ -17,8 +17,5 @@ class ServiceStatus(pydantic.BaseModel):
 @router.get('/status')
 async def get_service_status() -> ServiceStatus:
     return ServiceStatus.model_validate(
-        {
-            'status': 'ok',
-            'version': fastapi_webhook.version,
-        }
+        {'status': 'ok', 'version': fastapi_webhook.version}
     )

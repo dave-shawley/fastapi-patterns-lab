@@ -12,7 +12,7 @@ format *FILES:
 
 [doc("Run style checkers and static analyzers")]
 lint:
-    uv run ruff check
+    uv run ruff check --fix
     uv run mypy -p fastapi_webhook
 
 [doc("Run the service using uvicorn")]
