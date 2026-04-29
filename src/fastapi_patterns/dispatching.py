@@ -1,4 +1,13 @@
-"""Helpers for redispatching validated payloads through FastAPI."""
+"""Helpers for redispatching validated payloads through FastAPI.
+
+Use [DispatchState][.DispatchState] in conjunction with the
+[Lifespan][fastapi_patterns.lifespan.Lifespan] manager to enable
+dispatching of new requests through the FastAPI machinery complete
+with routing, middleware execution, and dependency injection. This
+enables request processing similar to [fastapi.BackgroundTasks][]
+except that it creates a new ASGI scope and clean dependency chain.
+
+"""
 
 from __future__ import annotations
 
@@ -20,6 +29,15 @@ if t.TYPE_CHECKING:
 
 
 class DispatchState:
+    """
+    Manages the dispatching and lifecycle of asynchronous tasks.
+
+    This class provides functionality to schedule, track, and clean up
+    asynchronous tasks linked to specific requests in the application.
+    It integrates with the FastAPI lifecycle, logging task-related
+    events, and ensuring proper resource cleanup.
+    """
+
     def __init__(self, app: fastapi.FastAPI) -> None:
         self.active_tasks: set[asyncio.Task[None]] = set()
         self.app = app
@@ -31,6 +49,19 @@ class DispatchState:
         receive_message: starlette.types.Receive,
         scope: starlette.types.Scope,
     ) -> asyncio.Task[None]:
+        """Schedule a request task for execution by the application.
+
+        A new asyncio task is created and scheduled by calling the
+        application instance with the provided scope and message generator.
+        Response handling is disabled by passing a blackhole send function.
+        Task completion is handled by registering
+        [task_finished][..task_finished] as a callback.
+
+        Args:
+            task_name: name of the task to schedule
+            receive_message: ASGI message generator
+            scope: ASGI scope
+        """
         self.logger.info(
             'scheduling task %r for scope %r',
             task_name,
@@ -46,11 +77,16 @@ class DispatchState:
             self.app(scope, receive_message, _blackhole_send), name=task_name
         )
         self.active_tasks.add(task)
-        task.add_done_callback(self._task_finished)
+        task.add_done_callback(self.task_finished)
 
         return task
 
-    def _task_finished(self, task: asyncio.Task[None]) -> None:
+    def task_finished(self, task: asyncio.Task[None]) -> None:
+        """Handle task completion.
+
+        Simple function that ensures that task completion is logged
+        particularly when an exception has occurred.
+        """
         task_name = utilities.get_task_name(task)
         try:
             if task.cancelled():
@@ -82,6 +118,20 @@ class DispatchState:
 
 
 type DispatchMessage = t.Callable[[str, str, pydantic.BaseModel], None]
+"""Callable for dispatching a new ASGI message.
+
+Use the [DispatchTaskRunner][..DispatchTaskRunner] dependency to inject
+this into anywhere that FastAPI's dependency injection is available.
+The callable creates an independent ASGI scope and schedules a new task
+using the [DispatchState][..DispatchState.schedule_request] lifespan
+object.
+
+Args:
+    task_name(str): name to assign to the new task
+    path(str): path to the target endpoint
+    payload(pydantic.BaseModel): validated request payload
+
+"""
 
 
 def _get_dispatch_task_runner(
@@ -131,6 +181,7 @@ def _get_dispatch_task_runner(
 DispatchTaskRunner = t.Annotated[
     DispatchMessage, fastapi.Depends(_get_dispatch_task_runner)
 ]
+"""Dependency injection for [DispatchMessage][..DispatchMessage]."""
 
 
 async def _blackhole_send(_message: starlette.types.Message) -> None:

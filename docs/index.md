@@ -12,13 +12,12 @@ patterns that are easier to understand when they are:
 - exercised in a small example application
 
 Some of those patterns may eventually settle into a reusable library.
-That is why the repository has two layers: a reusable kernel in
+That is why the repository now has two layers: a reusable kernel in
 `fastapi_patterns`, and an example application that consumes it.
 
 ## What This Repository Is
 
-This is not a polished product or a turnkey framework. It isn't even
-published to PyPI.
+This is not a polished product or a turnkey framework.
 
 It is a place to:
 
@@ -33,7 +32,7 @@ worth documenting.
 ## Repository Layout
 
 - `src/fastapi_patterns/`
-  The reusable kernel. This is the package built into the wheel today.
+  The reusable kernel. This is the package shipped in the wheel today.
 - `src/fastapi_webhook/`
   A small example application that demonstrates the patterns in
   practice. It stays in the repository as runnable reference code and a
@@ -41,6 +40,17 @@ worth documenting.
 - `docs/`
   Article-style notes about individual patterns. These are intended to
   become GitHub Pages content over time.
+
+## Current Patterns
+
+The repository currently focuses on a few related ideas:
+
+- composable FastAPI lifespan management with typed state lookup
+- re-dispatching validated webhook payloads back through the ASGI app as
+  fresh internal requests
+- small support utilities that make settings loading and task-aware
+  logging less repetitive
+- concrete webhook examples using GitHub and PagerDuty
 
 ## Package Boundary
 
@@ -56,8 +66,7 @@ application detail, it should probably migrate there.
 - providing concrete routes and payload models
 - giving the repository a fast local demo path
 
-At the moment, the built wheel only includes `fastapi_patterns` and
-there is only one example application.
+At the moment, the built wheel only includes `fastapi_patterns`.
 
 ## Running The Example App
 
@@ -65,14 +74,23 @@ This project currently targets Python `3.14`. I use the
 [just](https://just.systems/) utility to manage development tasks. If
 you haven't used it before, you can install pre-built binaries from the
 [just releases page](https://github.com/casey/just/releases). See the
-[just docs](https://just.systems/docs/installation) for more details. The `justfile` is similar to a Makefile.
-It contains commands that are useful for development. For example,
-`just serve` creates or synchronizes a virtual environment and runs the
-webhook example application.
+[just docs](https://just.systems/docs/installation) for more details.
+You can create a virtual environment, install dependencies, and run the
+example app with one simple command:
 
 ```bash
 just serve
 ```
+
+Useful endpoints:
+
+- `GET /status`
+- `POST /github/notification`
+- `POST /pagerduty/notification`
+
+The public webhook endpoints validate and normalize incoming payloads,
+then hand work off to internal processing routes using the dispatching
+pattern described in [Dispatching webhooks internally](patterns/dispatching.md).
 
 ## Development
 

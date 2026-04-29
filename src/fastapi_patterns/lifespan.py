@@ -1,47 +1,64 @@
 """FastAPI lifespan composition with type-safe dependency injection.
 
-Problem:
+!!! warning "Problem"
+
     FastAPI accepts only one lifespan callable, but applications need
     multiple independent resources (database pools, Redis connections)
     with separate setup/teardown lifecycles.
 
-Solution:
-    The Lifespan class composes multiple async context managers into a
-    single lifespan while preserving type information through dependency
-    injection.
+!!! success "Solution"
 
-Quick Example:
-    ::
+    The [Lifespan][.Lifespan] class composes multiple async state providers
+    into a single lifespan while preserving type information through
+    dependency injection.
 
-        @contextlib.asynccontextmanager
-        async def postgres_lifespan() -> abc.AsyncIterator[PoolType]:
-            async with psycopg_pool.AsyncConnectionPool(...) as pool:
-                yield pool
+Use the following pattern to define state that is readily available in any
+request handler.
 
-        async def _inject_pool(
-            context: LifespanMap
-        ) -> abc.AsyncIterator[PoolType]:
-            pool = context.get_state(postgres_lifespan)
-            async with pool.connection() as conn:
-                yield conn
+```python title="postgres.py"
+from fastapi_patterns import lifespan
 
-        PostgresPool = t.Annotated[
-            PoolType, fastapi.Depends(_inject_pool)
-        ]
+@contextlib.asynccontextmanager
+async def postgres_lifespan() -> abc.AsyncIterator[PoolType]: # (1)!
+    async with psycopg_pool.AsyncConnectionPool(...) as pool:
+        yield pool
 
-        app = fastapi.FastAPI(lifespan=Lifespan(postgres_lifespan))
+async def _inject_pool(
+    context: lifespan.LifespanMap
+) -> abc.AsyncIterator[PoolType]:
+    pool = context.get_state(postgres_lifespan) # (2)!
+    async with pool.connection() as conn:
+        yield conn
 
-        @app.get('/')
-        async def handler(*, pool: PostgresPool) -> None:
-            ...
+PostgresPool = t.Annotated[ # (3)!
+    PoolType, fastapi.Depends(_inject_pool)
+]
+```
 
-Usage Pattern:
-    1. Define lifespan hooks as async context managers returning
-       resources
-    2. Create Lifespan instance combining all hooks
-    3. Define dependency injection functions using get_state()
-    4. Create type aliases with Annotated[T, Depends(...)]
-    5. Use type aliases in route handler parameters
+1. Define lifespan hooks as async context managers returning your state
+2. Define dependency injection functions using [get_state][.Lifespan.get_state]
+3. Create type aliases with [typing.Annotated][] and [fastapi.Depends][]:
+   these will be used in route handlers to access the state
+
+```python title="app.py"
+import fastapi
+from fastapi_patterns import lifespan
+
+from my_package import postgres
+
+app = fastapi.FastAPI(
+    lifespan=lifespan.Lifespan(postgres.postgres_lifespan), # (1)!
+)
+
+@app.get('/')
+async def handler(*, pool: postgres.PostgresPool) -> None: # (2)!
+    ...
+```
+
+1. Create a [Lifespan][.Lifespan] instance combining all hooks in
+   your application
+2. Use type aliases from your provider in route handlers to access
+   the state
 
 """
 
@@ -103,35 +120,32 @@ class Lifespan(dict[LifespanHook, object | None]):
     dependency injection. Hooks are deduplicated (same hook only runs
     once) and cleaned up in LIFO order.
 
-    Args:
-        *hooks (LifespanHook): Variable number of lifespan hooks to
-            combine. Each hook is an async context manager that yields
-            a resource.
-
     Example:
-        ::
+        ```python
 
-            @contextlib.asynccontextmanager
-            async def postgres_lifespan() -> abc.AsyncIterator[PoolType]:
-                async with psycopg_pool.AsyncConnectionPool(...) as pool:
-                    yield pool
+        @contextlib.asynccontextmanager
+        async def postgres_lifespan() -> abc.AsyncIterator[PoolType]:
+            async with psycopg_pool.AsyncConnectionPool(...) as pool:
+                yield pool
 
-            app = fastapi.FastAPI(
-                lifespan=Lifespan(postgres_lifespan, redis_lifespan)
-            )
+        app = fastapi.FastAPI(
+            lifespan=Lifespan(postgres_lifespan, redis_lifespan)
+        )
+        ```
 
     See Also:
-        get_state: Retrieve resources from hooks with type preservation
-        LifespanMap: Type alias for dependency injection
+        * [get_state][.get_state]: Retrieve resources from hooks with
+            type preservation
+        * [LifespanMap][..LifespanMap]: Type alias for dependency injection
     """
 
     def __init__(self, *hooks: LifespanHook) -> None:
         """Initialize Lifespan with the given hooks.
 
         Args:
-            *hooks (LifespanHook): Variable number of lifespan hooks to
-                combine. Hooks are entered in the order provided and
-                exited in LIFO order. Duplicate hooks are deduplicated
+            *hooks: Variable number of lifespan hooks to combine.
+                Hooks are entered in the order provided and exited
+                in LIFO order. Duplicate hooks are deduplicated
                 automatically.
         """
         super().__init__()
@@ -140,28 +154,32 @@ class Lifespan(dict[LifespanHook, object | None]):
     def get_state[T](self, hook: TypedLifespanHook[T]) -> T:
         """Retrieve the resource yielded by a specific hook.
 
-        This is a generic method that preserves type information. If the
-        hook yields a resource of type `T`, this method returns `T`.
+        This is a generic method that preserves type information.
+        If the hook yields a resource of type `T`, this method
+        returns `T`. Use this method to create dependency injection
+        functions for use with [fastapi.Depends][].
 
         Args:
-            hook (TypedLifespanHook[T]): The lifespan hook whose
-                resource to retrieve. Must have been passed to the
-                Lifespan constructor.
+            hook: The lifespan hook whose resource to retrieve. Must
+                have been passed to the initializer.
 
         Returns:
             T: The resource yielded by the hook, with type preserved.
 
         Raises:
             fastapi.HTTPException: 500 error if the hook was not
-                registered with this Lifespan instance.
+                registered with this `Lifespan` instance.
 
         Example:
-            ::
+            ```python
 
-                def _inject_pool(context: LifespanMap) -> PoolType:
-                    # Type of pool is PoolType (not object)
-                    pool = context.get_state(postgres_lifespan)
-                    return pool
+            def _inject_pool(context: LifespanMap) -> PoolType:
+                # Type of pool is PoolType (not object)
+                pool = context.get_state(postgres_lifespan)
+                return pool
+
+            Pool = t.Annotated[PoolType, fastapi.Depends(_inject_pool)]
+            ```
         """
         try:
             return t.cast('T', self[hook])
@@ -181,16 +199,15 @@ class Lifespan(dict[LifespanHook, object | None]):
         resources, and ensures proper cleanup on shutdown.
 
         Args:
-            app (fastapi.FastAPI): The FastAPI application instance.
+            app: The FastAPI application instance.
 
         Returns:
-            contextlib.AbstractAsyncContextManager[dict[str, Lifespan]]:
-                An async context manager that yields a dictionary
+            An async context manager that yields a dictionary
                 containing the Lifespan instance under the key
                 'lifespan_data'.
 
         Note:
-            - Hooks are entered in the order provided to __init__
+            - Hooks are entered in the order provided to `__init__`
             - Duplicate hooks are detected and only executed once
             - Resources are cleaned up in LIFO order (last-in-first-out)
             - Uses AsyncExitStack to ensure proper cleanup even if hooks
@@ -210,14 +227,17 @@ class Lifespan(dict[LifespanHook, object | None]):
         return cm()
 
 
-def _get_lifespan(request: fastapi.Request) -> Lifespan:
-    """Extract the Lifespan instance from request state.
+def get_lifespan(request: fastapi.Request) -> Lifespan:
+    """Extract the Lifespan instance from the request state.
 
     This is a FastAPI dependency function that retrieves the Lifespan
-    instance from the request state. Used internally by LifespanMap.
+    instance from the request state.
+
+    !!! warning
+        You should be using [LifespanMap][..LifespanMap] instead!
 
     Args:
-        request (fastapi.Request): The current request object.
+        request: The current request object.
 
     Returns:
         Lifespan: The Lifespan instance that was set up during
@@ -229,8 +249,6 @@ def _get_lifespan(request: fastapi.Request) -> Lifespan:
             constructor) or if request.state.lifespan_data is not
             accessible.
 
-    See Also:
-        LifespanMap: Type alias that uses this function via Depends()
     """
     lifespan_data = t.cast(
         'object', getattr(request.state, 'lifespan_data', None)
@@ -242,4 +260,10 @@ def _get_lifespan(request: fastapi.Request) -> Lifespan:
     )
 
 
-type LifespanMap = t.Annotated[Lifespan, fastapi.Depends(_get_lifespan)]
+type LifespanMap = t.Annotated[Lifespan, fastapi.Depends(get_lifespan)]
+"""Dependency injection for Lifespan instance.
+
+Mention this type in a parameter list to inject the [Lifespan][..Lifespan]
+instance anywhere that FastAPI's dependency injection is available.
+
+"""
