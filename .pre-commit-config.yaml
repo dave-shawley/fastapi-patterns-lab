@@ -18,3 +18,4 @@ repos:
     hooks:
       - id: tombi-format
         exclude: uv.lock
+        args: [ --offline ]
