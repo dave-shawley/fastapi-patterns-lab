@@ -2,7 +2,7 @@
 site_name = "FastAPI Patterns Lab"
 site_description = "A working lab for exploring FastAPI and ASGI patterns in real code."
 site_author = "Dave Shawley"
-site_url = "https://github.com/dave-shawley/fastapi-patterns-lab"
+site_url = "https://dave-shawley.github.io/fastapi-patterns-lab"
 copyright = "&copy; 2026, Dave Shawley and AWeber Communications, Inc."
 
 [project.theme]
