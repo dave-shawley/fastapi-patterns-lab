@@ -3,10 +3,14 @@ site_name = "FastAPI Patterns Lab"
 site_description = "A working lab for exploring FastAPI and ASGI patterns in real code."
 site_author = "Dave Shawley"
 site_url = "https://dave-shawley.github.io/fastapi-patterns-lab"
+repo_url = "https://github.com/dave-shawley/fastapi-patterns-lab"
 copyright = "&copy; 2026, Dave Shawley and AWeber Communications, Inc."
 
 [project.theme]
 language = "en"
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
 
 # Zensical provides a number of feature toggles that change the behavior
 # of the documentation site.
