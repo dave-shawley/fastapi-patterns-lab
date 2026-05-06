@@ -19,13 +19,13 @@ request handler.
 from fastapi_patterns import lifespan
 
 @contextlib.asynccontextmanager
-async def postgres_lifespan() -> abc.AsyncIterator[PoolType]: # (1)!
+async def postgres_lifespan() -> abc.AsyncGenerator[PoolType]: # (1)!
     async with psycopg_pool.AsyncConnectionPool(...) as pool:
         yield pool
 
 async def _inject_pool(
     context: lifespan.LifespanMap
-) -> abc.AsyncIterator[PoolType]:
+) -> abc.AsyncGenerator[PoolType]:
     pool = context.get_state(postgres_lifespan) # (2)!
     async with pool.connection() as conn:
         yield conn
@@ -124,7 +124,7 @@ class Lifespan(dict[LifespanHook, object | None]):
         ```python
 
         @contextlib.asynccontextmanager
-        async def postgres_lifespan() -> abc.AsyncIterator[PoolType]:
+        async def postgres_lifespan() -> abc.AsyncGenerator[PoolType]:
             async with psycopg_pool.AsyncConnectionPool(...) as pool:
                 yield pool
 
@@ -215,7 +215,7 @@ class Lifespan(dict[LifespanHook, object | None]):
         """
 
         @contextlib.asynccontextmanager
-        async def cm() -> abc.AsyncIterator[dict[str, Lifespan]]:
+        async def cm() -> abc.AsyncGenerator[dict[str, Lifespan]]:
             async with contextlib.AsyncExitStack() as stack:
                 for hook in self._hooks:
                     if hook not in self:

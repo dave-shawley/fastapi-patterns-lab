@@ -78,7 +78,7 @@ import psycopg.pool
 @contextlib.asynccontextmanager
 async def postgres_lifespan(
     _app: fastapi.FastAPI,
-) -> abc.AsyncIterator[psycopg.pool.AsyncConnectionPool]:
+) -> abc.AsyncGenerator[psycopg.pool.AsyncConnectionPool]:
     async with psycopg.pool.AsyncConnectionPool(...) as pool:
         yield pool
 ```
