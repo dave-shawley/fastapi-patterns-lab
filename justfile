@@ -12,8 +12,8 @@ format *FILES:
 
 [doc("Run style checkers and static analyzers")]
 lint:
-    uv run ruff check --fix
-    uv run mypy -p fastapi_patterns -p fastapi_webhook
+    uv run ruff check --fix src
+    uv run pyrefly check src
 
 [doc("Run the example service using uvicorn")]
 serve *ARGS:
