@@ -48,6 +48,8 @@ The repository currently focuses on a few related ideas:
 - composable FastAPI lifespan management with typed state lookup
 - re-dispatching validated webhook payloads back through the ASGI app as
   fresh internal requests
+- exposing dependency helpers as named `Annotated` aliases so the same
+  dependency contract is reused consistently
 - small support utilities that make settings loading and task-aware
   logging less repetitive
 - concrete webhook examples using GitHub and PagerDuty
